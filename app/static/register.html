@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>NullNote | 회원가입</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+KR:wght@400;500;700&family=Space+Grotesk:wght@500;700&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="/style.css" />
+  </head>
+  <body class="auth-body">
+    <main class="auth-card">
+      <div class="auth-header">
+        <h1>계정 만들기</h1>
+        <p>NullNote를 시작하세요</p>
+      </div>
+
+      <form id="registerForm" class="auth-form">
+        <label>
+          아이디
+          <input id="username" type="text" autocomplete="username" minlength="3" required />
+        </label>
+        <label>
+          비밀번호
+          <input id="password" type="password" autocomplete="new-password" minlength="8" required />
+        </label>
+        <button type="submit" class="btn">회원가입</button>
+      </form>
+
+      <p class="auth-foot">
+        이미 계정이 있나요? <a href="/login.html">로그인</a>
+      </p>
+      <p id="authMessage" class="auth-message"></p>
+    </main>
+
+    <script src="/register.js"></script>
+  </body>
+</html>

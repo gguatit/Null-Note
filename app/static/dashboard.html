@@ -1,0 +1,119 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>NullNote | 대시보드</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+KR:wght@400;500;700&family=Space+Grotesk:wght@500;700&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/themes/prism.min.css" />
+    <link rel="stylesheet" href="/style.css" />
+  </head>
+  <body class="app-body">
+    <header class="app-topbar">
+      <div class="left-group">
+        <button id="sidebarToggleBtn" class="icon-btn" title="사이드바 열고 닫기">☰</button>
+        <h1>NullNote</h1>
+        <span class="crumb">/ Workspace</span>
+      </div>
+      <div class="right-group">
+        <input id="searchInput" class="search-input" type="text" placeholder="노트 검색" />
+        <span class="hotkey-hint">Ctrl/Cmd + S</span>
+        <button id="settingsToggleBtn" class="btn ghost">설정</button>
+        <button id="logoutBtn" class="btn ghost">로그아웃</button>
+      </div>
+    </header>
+
+    <main class="app-layout" id="appLayout">
+      <aside class="sidebar" id="sidebar">
+        <div class="sidebar-head">
+          <h2>내 노트</h2>
+          <button id="refreshNotesBtn" class="icon-btn" title="새로고침">⟳</button>
+        </div>
+        <button id="newNoteBtn" class="btn">새 노트</button>
+        <ul id="noteList" class="note-list"></ul>
+      </aside>
+
+      <section class="editor-section">
+        <div class="editor-toolbar">
+          <div class="page-title-row">
+            <span class="page-icon">●</span>
+            <input id="titleInput" type="text" placeholder="제목 없음" />
+          </div>
+          <div class="toolbar-actions">
+            <label class="checkline"><input id="isPublic" type="checkbox" /> 공개</label>
+            <button id="saveNoteBtn" class="btn">저장</button>
+            <button id="deleteNoteBtn" class="btn ghost">삭제</button>
+            <button id="copyPublicLinkBtn" class="btn ghost">공개링크</button>
+          </div>
+        </div>
+
+        <div class="block-toolbar">
+          <button class="chip-btn" data-snippet="# ">H1</button>
+          <button class="chip-btn" data-snippet="## ">H2</button>
+          <button class="chip-btn" data-snippet="- [ ] ">체크리스트</button>
+          <button class="chip-btn" data-snippet="```\n\n```">코드 블록</button>
+          <button class="chip-btn" data-snippet="```mermaid\nsequenceDiagram\n\n```">Mermaid</button>
+          <button class="chip-btn" data-snippet="| 제목 | 값 |\n| --- | --- |\n| A | B |">표</button>
+          <label class="split-row">
+            분할
+            <input id="splitRange" type="range" min="30" max="70" step="1" />
+          </label>
+        </div>
+
+        <div class="editor-content" id="editorContent">
+          <textarea id="contentInput" placeholder="# Markdown을 작성하세요"></textarea>
+          <article id="preview" class="preview-panel"></article>
+        </div>
+
+        <div class="statusbar">
+          <span id="wordCount">0자</span>
+          <span id="readTime">예상 읽기 0분</span>
+          <span id="saveState">저장 대기</span>
+        </div>
+      </section>
+
+      <aside class="settings-panel" id="settingsPanel">
+        <h2>설정</h2>
+        <label class="setting-row">
+          <span>자동 저장</span>
+          <input id="autoSaveToggle" type="checkbox" />
+        </label>
+        <label class="setting-row">
+          <span>미리보기 표시</span>
+          <input id="previewToggle" type="checkbox" checked />
+        </label>
+        <label class="setting-row">
+          <span>에디터 글자 크기</span>
+          <input id="fontSizeRange" type="range" min="13" max="24" step="1" />
+        </label>
+        <label class="setting-row">
+          <span>콤팩트 모드</span>
+          <input id="compactModeToggle" type="checkbox" />
+        </label>
+        <div class="setting-actions">
+          <button id="exportMdBtn" class="btn ghost">MD 내보내기</button>
+          <label class="btn ghost file-btn">
+            MD 불러오기
+            <input id="importMdInput" type="file" accept=".md,text/markdown,text/plain" />
+          </label>
+          <button id="duplicateNoteBtn" class="btn ghost">노트 복제</button>
+        </div>
+        <p class="tip">단축키: Ctrl/Cmd + S 저장</p>
+      </aside>
+    </main>
+    <div id="toastArea" class="toast-area" aria-live="polite"></div>
+
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/prism.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/prism-python.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/prism-javascript.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/prism-markup.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+    <script src="/dashboard.js"></script>
+  </body>
+</html>
