@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>NullNote Public</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&family=Noto+Sans+KR:wght@400;500;700&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/themes/prism-tomorrow.min.css" />
+    <link rel="stylesheet" href="/style.css" />
+    <style>
+      .public-wrap {
+        max-width: 860px;
+        margin: 24px auto;
+        padding: 0 14px;
+      }
+      .public-card {
+        background: #fff;
+        border: 1px solid var(--line);
+        border-radius: 14px;
+        padding: 18px;
+      }
+      .public-card h1 {
+        margin-bottom: 14px;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="public-wrap">
+      <div class="public-card">
+        <h1 id="title">불러오는 중...</h1>
+        <article id="content"></article>
+      </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/prism.min.js"></script>
+    <script>
+      async function init() {
+        const id = new URLSearchParams(location.search).get("id");
+        if (!id) {
+          document.getElementById("title").textContent = "잘못된 링크입니다.";
+          return;
+        }
+
+        const res = await fetch(`/notes/${id}`);
+        if (!res.ok) {
+          document.getElementById("title").textContent = "노트를 불러올 수 없습니다.";
+          return;
+        }
+
+        const note = await res.json();
+        document.getElementById("title").textContent = note.title || "Untitled";
+        document.getElementById("content").innerHTML = note.rendered_html;
+        Prism.highlightAll();
+      }
+      init();
+    </script>
+  </body>
+</html>

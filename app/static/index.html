@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>NullNote</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=Noto+Sans+KR:wght@400;500;700&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/themes/prism-tomorrow.min.css" />
+    <link rel="stylesheet" href="/style.css" />
+  </head>
+  <body>
+    <div class="bg-shape bg-shape-a"></div>
+    <div class="bg-shape bg-shape-b"></div>
+
+    <header class="topbar">
+      <h1>NullNote</h1>
+      <div class="auth-actions">
+        <input id="username" type="text" placeholder="아이디" />
+        <input id="password" type="password" placeholder="비밀번호" />
+        <button id="registerBtn" class="btn secondary">회원가입</button>
+        <button id="loginBtn" class="btn">로그인</button>
+        <button id="logoutBtn" class="btn ghost">로그아웃</button>
+      </div>
+    </header>
+
+    <main class="layout">
+      <aside class="panel note-list-panel">
+        <div class="panel-head">
+          <h2>내 노트</h2>
+          <button id="refreshNotesBtn" class="btn tiny">새로고침</button>
+        </div>
+        <input id="searchInput" type="text" placeholder="제목/내용 검색" />
+        <ul id="noteList"></ul>
+      </aside>
+
+      <section class="panel editor-panel">
+        <div class="panel-head">
+          <h2>에디터</h2>
+          <div class="editor-actions">
+            <label class="public-toggle">
+              <input id="isPublic" type="checkbox" /> 공개
+            </label>
+            <button id="newNoteBtn" class="btn tiny secondary">새 노트</button>
+            <button id="saveNoteBtn" class="btn tiny">저장</button>
+            <button id="deleteNoteBtn" class="btn tiny ghost">삭제</button>
+          </div>
+        </div>
+        <input id="titleInput" type="text" placeholder="노트 제목" />
+        <textarea id="contentInput" placeholder="# 여기에 Markdown을 작성하세요"></textarea>
+      </section>
+
+      <section class="panel preview-panel">
+        <div class="panel-head">
+          <h2>미리보기</h2>
+          <button id="copyPublicLinkBtn" class="btn tiny secondary">공개 링크 복사</button>
+        </div>
+        <article id="preview"></article>
+      </section>
+    </main>
+
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/prism.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/prism-python.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/prism-javascript.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/prism-markup.min.js"></script>
+    <script src="/app.js"></script>
+  </body>
+</html>
