@@ -1,4 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException, status
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.core.db import get_db
@@ -16,17 +17,30 @@ def register(payload: UserRegister, db: Session = Depends(get_db)):
     if existing:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Username already exists")
 
-    user = User(username=payload.username, password_hash=get_password_hash(payload.password))
-    db.add(user)
-    db.commit()
-    db.refresh(user)
+    try:
+        user = User(username=payload.username, password_hash=get_password_hash(payload.password))
+        db.add(user)
+        db.commit()
+        db.refresh(user)
+    except ValueError:
+        db.rollback()
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid password format")
+    except IntegrityError:
+        db.rollback()
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Username already exists")
+
     return user
 
 
 @router.post("/login", response_model=TokenResponse)
 def login(payload: UserLogin, db: Session = Depends(get_db)):
     user = db.query(User).filter(User.username == payload.username).first()
-    if not user or not verify_password(payload.password, user.password_hash):
+    try:
+        valid = bool(user) and verify_password(payload.password, user.password_hash)
+    except ValueError:
+        valid = False
+
+    if not valid:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid credentials")
 
     access_token = create_access_token(subject=user.username)

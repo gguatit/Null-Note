@@ -11,7 +11,7 @@
       rel="stylesheet"
     />
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/themes/prism-tomorrow.min.css" />
-    <link rel="stylesheet" href="/style.css" />
+    <link rel="stylesheet" href="/style.css?v=20260409h" />
     <style>
       .public-wrap {
         max-width: 860px;
@@ -19,7 +19,7 @@
         padding: 0 14px;
       }
       .public-card {
-        background: #fff;
+        background: var(--surface);
         border: 1px solid var(--line);
         border-radius: 14px;
         padding: 18px;
@@ -30,6 +30,7 @@
     </style>
   </head>
   <body>
+    <button id="themeToggleBtn" class="theme-fab" type="button" aria-label="다크 모드 전환">◐</button>
     <div class="public-wrap">
       <div class="public-card">
         <h1 id="title">불러오는 중...</h1>
@@ -37,9 +38,25 @@
       </div>
     </div>
 
+    <script src="/theme.js?v=20260409f"></script>
     <script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/prism.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
     <script>
+      const themeToggleBtn = document.getElementById("themeToggleBtn");
+      if (themeToggleBtn && window.NullNoteTheme?.getTheme) {
+        const syncThemeButton = () => {
+          const dark = window.NullNoteTheme.getTheme() === "dark";
+          themeToggleBtn.textContent = dark ? "☀" : "◐";
+          themeToggleBtn.title = dark ? "라이트 모드 전환" : "다크 모드 전환";
+        };
+
+        syncThemeButton();
+        themeToggleBtn.addEventListener("click", () => {
+          window.NullNoteTheme.toggleTheme();
+          syncThemeButton();
+        });
+      }
+
       mermaid.initialize({
         startOnLoad: false,
         securityLevel: "loose",

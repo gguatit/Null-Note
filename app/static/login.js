@@ -4,10 +4,73 @@ if (localStorage.getItem("nullnote_token")) {
 
 const form = document.getElementById("loginForm");
 const message = document.getElementById("authMessage");
+const themeToggleBtn = document.getElementById("themeToggleBtn");
+const usernameInput = document.getElementById("username");
+
+if (themeToggleBtn && window.NullNoteTheme?.getTheme) {
+  const syncThemeButton = () => {
+    const dark = window.NullNoteTheme.getTheme() === "dark";
+    themeToggleBtn.textContent = dark ? "☀" : "◐";
+      themeToggleBtn.title = dark ? "라이트 모드 전환" : "다크 모드 전환";
+  };
+
+  syncThemeButton();
+  themeToggleBtn.addEventListener("click", () => {
+    window.NullNoteTheme.toggleTheme();
+    syncThemeButton();
+  });
+}
 
 function setMessage(text, isError = false) {
   message.textContent = text;
   message.dataset.error = isError ? "1" : "0";
+}
+
+function applyPostRegisterHint() {
+  const params = new URLSearchParams(location.search);
+  if (params.get("registered") !== "1") {
+    return;
+  }
+
+  const username = params.get("username") || "";
+  if (username) {
+    usernameInput.value = username;
+  }
+  setMessage("회원가입이 완료되었습니다. 로그인해주세요.");
+
+  const cleanUrl = new URL(location.href);
+  cleanUrl.searchParams.delete("registered");
+  cleanUrl.searchParams.delete("username");
+  history.replaceState(null, "", `${cleanUrl.pathname}${cleanUrl.search}`);
+}
+
+function normalizeErrorMessage(data, fallback) {
+  const detail = data?.detail;
+  if (typeof detail === "string" && detail.trim()) {
+    return detail;
+  }
+
+  if (Array.isArray(detail)) {
+    const lines = detail
+      .map((item) => {
+        if (typeof item === "string") {
+          return item;
+        }
+        if (item && typeof item === "object") {
+          const field = Array.isArray(item.loc) ? item.loc[item.loc.length - 1] : "입력값";
+          const msg = item.msg || "유효하지 않습니다.";
+          return `${field}: ${msg}`;
+        }
+        return "";
+      })
+      .filter(Boolean);
+
+    if (lines.length > 0) {
+      return lines.join("\n");
+    }
+  }
+
+  return fallback;
 }
 
 form.addEventListener("submit", async (event) => {
@@ -25,7 +88,7 @@ form.addEventListener("submit", async (event) => {
 
     const data = await res.json().catch(() => ({}));
     if (!res.ok) {
-      throw new Error(data.detail || "로그인에 실패했습니다.");
+      throw new Error(normalizeErrorMessage(data, "로그인에 실패했습니다."));
     }
 
     localStorage.setItem("nullnote_token", data.access_token);
@@ -34,3 +97,5 @@ form.addEventListener("submit", async (event) => {
     setMessage(err.message, true);
   }
 });
+
+applyPostRegisterHint();

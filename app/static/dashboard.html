@@ -11,7 +11,7 @@
       rel="stylesheet"
     />
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/themes/prism.min.css" />
-    <link rel="stylesheet" href="/style.css" />
+    <link rel="stylesheet" href="/style.css?v=20260409j" />
   </head>
   <body class="app-body">
     <header class="app-topbar">
@@ -22,8 +22,9 @@
         <span id="guestBadge" class="guest-badge" hidden>Guest</span>
       </div>
       <div class="right-group">
-        <input id="searchInput" class="search-input" type="text" placeholder="노트 검색" />
+        <input id="searchInput" class="search-input" type="text" placeholder="노트 검색" aria-label="노트 검색" />
         <span class="hotkey-hint">Ctrl/Cmd + S</span>
+        <button id="themeToggleBtn" class="icon-btn" title="다크 모드 전환" aria-label="다크 모드 전환">◐</button>
         <button id="loginCtaBtn" class="btn ghost" hidden>로그인해서 내 노트 보기</button>
         <button id="settingsToggleBtn" class="btn ghost">설정</button>
         <button id="logoutBtn" class="btn ghost">로그아웃</button>
@@ -44,31 +45,21 @@
         <div class="editor-toolbar">
           <div class="page-title-row">
             <span class="page-icon">●</span>
-            <input id="titleInput" type="text" placeholder="제목 없음" />
+            <input id="titleInput" type="text" placeholder="제목 없음" aria-label="노트 제목" />
           </div>
           <div class="toolbar-actions">
             <label class="checkline"><input id="isPublic" type="checkbox" /> 공개</label>
+            <button id="previewQuickToggleBtn" class="btn ghost" type="button">미리보기 열기</button>
             <button id="saveNoteBtn" class="btn">저장</button>
             <button id="deleteNoteBtn" class="btn ghost">삭제</button>
             <button id="copyPublicLinkBtn" class="btn ghost">공개링크</button>
           </div>
         </div>
-
-        <div class="block-toolbar">
-          <button class="chip-btn" data-snippet="# ">H1</button>
-          <button class="chip-btn" data-snippet="## ">H2</button>
-          <button class="chip-btn" data-snippet="- [ ] ">체크리스트</button>
-          <button class="chip-btn" data-snippet="```\n\n```">코드 블록</button>
-          <button class="chip-btn" data-snippet="```mermaid\nsequenceDiagram\n\n```">Mermaid</button>
-          <button class="chip-btn" data-snippet="| 제목 | 값 |\n| --- | --- |\n| A | B |">표</button>
-          <label class="split-row">
-            분할
-            <input id="splitRange" type="range" min="30" max="70" step="1" />
-          </label>
-        </div>
-
         <div class="editor-content" id="editorContent">
-          <textarea id="contentInput" placeholder="# Markdown을 작성하세요"></textarea>
+          <div class="editor-pane" id="editorPane">
+            <textarea id="contentInput" placeholder="# Markdown을 작성하세요\n\n우클릭으로 블록 삽입 메뉴를 열 수 있습니다." aria-label="마크다운 편집기"></textarea>
+          </div>
+          <div id="editorSplitter" class="editor-splitter" title="드래그해서 편집기/미리보기 비율 조절"></div>
           <article id="preview" class="preview-panel"></article>
         </div>
 
@@ -90,12 +81,54 @@
           <input id="previewToggle" type="checkbox" checked />
         </label>
         <label class="setting-row">
-          <span>에디터 글자 크기</span>
-          <input id="fontSizeRange" type="range" min="13" max="24" step="1" />
+          <span>글자 크기 단위</span>
+          <select id="fontSizeUnitSelect">
+            <option value="px">px</option>
+            <option value="%">%</option>
+          </select>
+        </label>
+        <label class="setting-row">
+          <span>글자 크기</span>
+          <div class="setting-inline">
+            <input id="fontSizeNumber" type="number" min="12" max="32" step="1" />
+          </div>
+        </label>
+        <label class="setting-row">
+          <span>줄 간격</span>
+          <input id="lineHeightNumber" type="number" min="1.2" max="2.2" step="0.1" />
+        </label>
+        <label class="setting-row">
+          <span>자동 저장 간격</span>
+          <select id="autoSaveDelaySelect">
+            <option value="700">0.7초</option>
+            <option value="1200">1.2초</option>
+            <option value="2000">2초</option>
+            <option value="3500">3.5초</option>
+          </select>
+        </label>
+        <label class="setting-row">
+          <span>에디터 폭</span>
+          <select id="editorWidthSelect">
+            <option value="full">Full</option>
+            <option value="wide">Wide</option>
+            <option value="narrow">Narrow</option>
+          </select>
+        </label>
+        <label class="setting-row">
+          <span>토스트 표시 시간</span>
+          <select id="toastDurationSelect">
+            <option value="1600">짧게</option>
+            <option value="2400">보통</option>
+            <option value="3600">길게</option>
+          </select>
         </label>
         <label class="setting-row">
           <span>콤팩트 모드</span>
           <input id="compactModeToggle" type="checkbox" />
+        </label>
+        <label class="setting-row">
+          <span>모션 줄이기</span>
+          <input id="reduceMotionToggle" type="checkbox" />
         </label>
         <div class="setting-actions">
           <button id="exportMdBtn" class="btn ghost">MD 내보내기</button>
@@ -104,18 +137,65 @@
             <input id="importMdInput" type="file" accept=".md,text/markdown,text/plain" />
           </label>
           <button id="duplicateNoteBtn" class="btn ghost">노트 복제</button>
+          <button id="resetSettingsBtn" class="btn ghost">설정 초기화</button>
         </div>
         <p class="tip">단축키: Ctrl/Cmd + S 저장</p>
       </aside>
     </main>
+
+    <div id="editorContextMenu" class="editor-context-menu" hidden>
+      <div class="context-title">블록 삽입</div>
+      <input id="contextMenuSearch" class="context-search" type="text" placeholder="블록 검색" aria-label="블록 검색" />
+      <div class="context-subtitle" id="contextRecentTitle" hidden>최근 사용</div>
+      <div id="contextRecent" class="context-recent" hidden></div>
+      <div class="context-subtitle">기본 블록</div>
+      <button type="button" data-action="h1" data-keywords="heading title">제목 1</button>
+      <button type="button" data-action="h2" data-keywords="heading subtitle">제목 2</button>
+      <button type="button" data-action="h3" data-keywords="heading subtitle">제목 3</button>
+      <button type="button" data-action="quote" data-keywords="blockquote">인용문</button>
+      <button type="button" data-action="divider" data-keywords="hr separator">구분선</button>
+      <button type="button" data-action="todo" data-keywords="check task checklist">체크리스트</button>
+      <button type="button" data-action="ul" data-keywords="list bullet">글머리 목록</button>
+      <button type="button" data-action="ol" data-keywords="list numbered">번호 목록</button>
+      <button type="button" data-action="table" data-keywords="grid column row">표</button>
+      <button type="button" data-action="toggle" data-keywords="details fold">토글 섹션</button>
+      <div class="context-subtitle">코드/데이터</div>
+      <button type="button" data-action="code" data-keywords="codeblock snippet">코드 블록</button>
+      <button type="button" data-action="inlineCode" data-keywords="inline code">인라인 코드</button>
+      <button type="button" data-action="json" data-keywords="json data">JSON 샘플</button>
+      <button type="button" data-action="yaml" data-keywords="yaml config">YAML 샘플</button>
+      <button type="button" data-action="bash" data-keywords="shell terminal sh">Bash 스니펫</button>
+      <button type="button" data-action="python" data-keywords="py">Python 스니펫</button>
+      <button type="button" data-action="ts" data-keywords="typescript tsx">TypeScript 스니펫</button>
+      <button type="button" data-action="sql" data-keywords="query database">SQL 스니펫</button>
+      <button type="button" data-action="mermaid" data-keywords="diagram flowchart sequence">Mermaid</button>
+      <button type="button" data-action="math" data-keywords="katex equation latex">수식 블록</button>
+      <div class="context-subtitle">문서 템플릿</div>
+      <button type="button" data-action="link" data-keywords="url anchor">링크</button>
+      <button type="button" data-action="image" data-keywords="img picture">이미지</button>
+      <button type="button" data-action="callout" data-keywords="note info">콜아웃</button>
+      <button type="button" data-action="warning" data-keywords="alert caution">주의 콜아웃</button>
+      <button type="button" data-action="success" data-keywords="tip success done">완료 콜아웃</button>
+      <button type="button" data-action="api" data-keywords="rest request endpoint">API 요청 템플릿</button>
+      <button type="button" data-action="meeting" data-keywords="minutes meeting">회의록 템플릿</button>
+      <button type="button" data-action="kanban" data-keywords="task board">칸반 템플릿</button>
+      <button type="button" data-action="bug" data-keywords="issue defect">버그 리포트 템플릿</button>
+      <button type="button" data-action="decision" data-keywords="adr architecture">의사결정 템플릿</button>
+      <button type="button" data-action="timeline" data-keywords="schedule plan">타임라인 템플릿</button>
+      <button type="button" data-action="footnote" data-keywords="reference citation">각주 템플릿</button>
+      <button type="button" data-action="copyDate" data-keywords="today date now">오늘 날짜</button>
+    </div>
+
     <div id="toastArea" class="toast-area" aria-live="polite"></div>
 
+    <script src="/theme.js?v=20260409f"></script>
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/prism.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/prism-python.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/prism-javascript.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/prism-markup.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
-    <script src="/dashboard.js"></script>
+    <script src="/editorContextMenu.js?v=20260409j"></script>
+    <script src="/dashboard.js?v=20260409o"></script>
   </body>
 </html>

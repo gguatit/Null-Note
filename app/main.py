@@ -1,6 +1,6 @@
 from pathlib import Path
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
@@ -13,6 +13,14 @@ from app.routes.organization import router as organization_router
 
 app = FastAPI(title=settings.app_name)
 static_dir = Path(__file__).resolve().parent / "static"
+
+CANONICAL_HTML_ROUTES = {
+    "/index.html": "/dashboard",
+    "/dashboard.html": "/dashboard",
+    "/login.html": "/login",
+    "/register.html": "/register",
+    "/public.html": "/public",
+}
 
 origins = [origin.strip() for origin in settings.cors_origins.split(",") if origin.strip()]
 app.add_middleware(
@@ -29,6 +37,17 @@ def on_startup():
     Base.metadata.create_all(bind=engine)
 
 
+@app.middleware("http")
+async def canonical_html_redirect_middleware(request: Request, call_next):
+    target = CANONICAL_HTML_ROUTES.get(request.url.path)
+    if target:
+        query = request.url.query
+        suffix = f"?{query}" if query else ""
+        return RedirectResponse(url=f"{target}{suffix}", status_code=307)
+
+    return await call_next(request)
+
+
 @app.get("/health")
 def health_check():
     return {"status": "ok"}
@@ -37,6 +56,37 @@ def health_check():
 @app.get("/", include_in_schema=False)
 def root_page():
     return RedirectResponse(url="/dashboard", status_code=307)
+
+
+def _redirect_without_html(request: Request, target: str):
+    query = request.url.query
+    suffix = f"?{query}" if query else ""
+    return RedirectResponse(url=f"{target}{suffix}", status_code=307)
+
+
+@app.get("/index.html", include_in_schema=False)
+def index_html_page(request: Request):
+    return _redirect_without_html(request, "/dashboard")
+
+
+@app.get("/dashboard.html", include_in_schema=False)
+def dashboard_html_page(request: Request):
+    return _redirect_without_html(request, "/dashboard")
+
+
+@app.get("/login.html", include_in_schema=False)
+def login_html_page(request: Request):
+    return _redirect_without_html(request, "/login")
+
+
+@app.get("/register.html", include_in_schema=False)
+def register_html_page(request: Request):
+    return _redirect_without_html(request, "/register")
+
+
+@app.get("/public.html", include_in_schema=False)
+def public_html_page(request: Request):
+    return _redirect_without_html(request, "/public")
 
 
 @app.get("/dashboard", include_in_schema=False)
