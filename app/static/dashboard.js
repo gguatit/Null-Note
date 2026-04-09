@@ -28,6 +28,8 @@ const el = {
   settingsToggleBtn: document.getElementById("settingsToggleBtn"),
   settingsPanel: document.getElementById("settingsPanel"),
   logoutBtn: document.getElementById("logoutBtn"),
+  loginCtaBtn: document.getElementById("loginCtaBtn"),
+  guestBadge: document.getElementById("guestBadge"),
   searchInput: document.getElementById("searchInput"),
   refreshNotesBtn: document.getElementById("refreshNotesBtn"),
   noteList: document.getElementById("noteList"),
@@ -132,6 +134,8 @@ async function api(path, options = {}) {
 
 function updateAuthButton() {
   el.logoutBtn.textContent = state.isAuthenticated ? "로그아웃" : "로그인";
+  el.loginCtaBtn.hidden = state.isAuthenticated;
+  el.guestBadge.hidden = state.isAuthenticated;
 }
 
 function normalizeMermaidMarkdown(text) {
@@ -271,7 +275,16 @@ function renderNoteList() {
 }
 
 async function loadMyNotes() {
-  state.notes = state.isAuthenticated ? await api("/notes/user") : await api("/notes/public");
+  try {
+    state.notes = state.isAuthenticated ? await api("/notes/user") : await api("/notes/public");
+  } catch (error) {
+    if (state.isAuthenticated) {
+      state.notes = await api("/notes/public");
+      toast("인증 상태를 확인할 수 없어 공개 노트를 표시합니다.", "warn");
+    } else {
+      throw error;
+    }
+  }
 
   if (state.currentNoteId) {
     const current = state.notes.find((n) => n.id === state.currentNoteId);
@@ -354,7 +367,7 @@ async function copyPublicLink() {
     return;
   }
 
-  const url = `${location.origin}/public.html?id=${state.currentNoteId}`;
+  const url = `${location.origin}/public?id=${state.currentNoteId}`;
   await navigator.clipboard.writeText(url);
   setSaveState("공개 링크 복사됨");
   toast("공개 링크를 복사했습니다.", "success");
@@ -415,7 +428,7 @@ function duplicateCurrentNote() {
 
 function logout() {
   if (!state.isAuthenticated) {
-    location.href = "/login.html";
+    location.href = "/login";
     return;
   }
 
@@ -442,6 +455,9 @@ el.settingsToggleBtn.addEventListener("click", () => {
 });
 
 el.logoutBtn.addEventListener("click", logout);
+el.loginCtaBtn.addEventListener("click", () => {
+  location.href = "/login";
+});
 el.newNoteBtn.addEventListener("click", clearEditor);
 el.refreshNotesBtn.addEventListener("click", () => loadMyNotes().catch((e) => toast(e.message, "warn")));
 el.saveNoteBtn.addEventListener("click", () => saveCurrentNote().catch((e) => toast(e.message, "warn")));
@@ -527,5 +543,11 @@ document.addEventListener("keydown", (event) => {
   updateAuthButton();
   applySettings();
   clearEditor();
-  await loadMyNotes();
+  try {
+    await loadMyNotes();
+  } catch (error) {
+    toast(error.message || "초기 로딩에 실패했습니다.", "warn");
+    state.notes = [];
+    renderNoteList();
+  }
 })();

@@ -1,5 +1,5 @@
 if (localStorage.getItem("nullnote_token")) {
-  location.replace("/dashboard.html");
+  location.replace("/dashboard");
 }
 
 const form = document.getElementById("loginForm");
@@ -29,7 +29,7 @@ form.addEventListener("submit", async (event) => {
     }
 
     localStorage.setItem("nullnote_token", data.access_token);
-    location.replace("/dashboard.html");
+    location.replace("/dashboard");
   } catch (err) {
     setMessage(err.message, true);
   }
