@@ -38,7 +38,29 @@
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/prism.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
     <script>
+      mermaid.initialize({
+        startOnLoad: false,
+        securityLevel: "loose",
+      });
+
+      function enhanceMermaid(root) {
+        const codeNodes = root.querySelectorAll("pre > code");
+        for (const code of codeNodes) {
+          const cls = code.className || "";
+          if (!/(^|\s)(language-mermaid|lang-mermaid|mermaid)(\s|$)/.test(cls)) {
+            continue;
+          }
+
+          const pre = code.parentElement;
+          const block = document.createElement("div");
+          block.className = "mermaid";
+          block.textContent = code.textContent || "";
+          pre.replaceWith(block);
+        }
+      }
+
       async function init() {
         const id = new URLSearchParams(location.search).get("id");
         if (!id) {
@@ -54,8 +76,11 @@
 
         const note = await res.json();
         document.getElementById("title").textContent = note.title || "Untitled";
-        document.getElementById("content").innerHTML = note.rendered_html;
+        const content = document.getElementById("content");
+        content.innerHTML = note.rendered_html;
+        enhanceMermaid(content);
         Prism.highlightAll();
+        await mermaid.run({ nodes: content.querySelectorAll(".mermaid") });
       }
       init();
     </script>

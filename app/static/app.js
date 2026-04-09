@@ -28,14 +28,71 @@ marked.setOptions({
   gfm: true,
 });
 
+mermaid.initialize({
+  startOnLoad: false,
+  securityLevel: "loose",
+});
+
+function normalizeMermaidMarkdown(text) {
+  const source = text || "";
+  if (source.includes("```")) {
+    return source;
+  }
+
+  const firstNonEmpty = source.split(/\r?\n/).find((line) => line.trim().length > 0);
+  if (!firstNonEmpty) {
+    return source;
+  }
+
+  const start = firstNonEmpty.trim();
+  const mermaidStarts = [
+    "sequenceDiagram",
+    "flowchart",
+    "graph",
+    "classDiagram",
+    "stateDiagram",
+    "erDiagram",
+    "journey",
+    "gantt",
+    "pie",
+    "mindmap",
+    "timeline",
+  ];
+
+  if (mermaidStarts.some((prefix) => start.startsWith(prefix))) {
+    return `\`\`\`mermaid\n${source.trim()}\n\`\`\``;
+  }
+
+  return source;
+}
+
+function enhanceMermaid(root) {
+  const codeNodes = root.querySelectorAll("pre > code");
+  for (const code of codeNodes) {
+    const cls = code.className || "";
+    if (!/(^|\s)(language-mermaid|lang-mermaid|mermaid)(\s|$)/.test(cls)) {
+      continue;
+    }
+
+    const pre = code.parentElement;
+    const block = document.createElement("div");
+    block.className = "mermaid";
+    block.textContent = code.textContent || "";
+    pre.replaceWith(block);
+  }
+}
+
 function authHeaders() {
   return state.token ? { Authorization: `Bearer ${state.token}` } : {};
 }
 
-function renderPreview() {
-  const html = marked.parse(el.contentInput.value || "");
+async function renderPreview() {
+  const normalized = normalizeMermaidMarkdown(el.contentInput.value || "");
+  const html = marked.parse(normalized);
   el.preview.innerHTML = html;
+  enhanceMermaid(el.preview);
   Prism.highlightAllUnder(el.preview);
+  await mermaid.run({ nodes: el.preview.querySelectorAll(".mermaid") });
 }
 
 function clearEditor() {
@@ -202,7 +259,7 @@ async function copyPublicLink() {
   alert("공개 링크가 복사되었습니다.");
 }
 
-el.contentInput.addEventListener("input", renderPreview);
+el.contentInput.addEventListener("input", () => renderPreview().catch(() => {}));
 el.registerBtn.addEventListener("click", () => register().catch((e) => alert(e.message)));
 el.loginBtn.addEventListener("click", () => login().catch((e) => alert(e.message)));
 el.logoutBtn.addEventListener("click", logout);
@@ -217,7 +274,7 @@ el.saveNoteBtn.addEventListener("click", () => saveCurrentNote().catch((e) => al
 el.deleteNoteBtn.addEventListener("click", () => deleteCurrentNote().catch((e) => alert(e.message)));
 el.copyPublicLinkBtn.addEventListener("click", () => copyPublicLink().catch((e) => alert(e.message)));
 
-renderPreview();
+renderPreview().catch(() => {});
 if (state.token) {
   loadMyNotes().catch(() => {
     state.token = "";
