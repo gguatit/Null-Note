@@ -1,3 +1,5 @@
+import sys
+
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -10,6 +12,15 @@ class Settings(BaseSettings):
     access_token_expire_minutes: int = 60 * 24
     database_url: str = "postgresql+psycopg://postgres:postgres@localhost:5432/nullnote"
     cors_origins: str = "*"
+
+    def check_production_safety(self) -> None:
+        if self.secret_key == "change-this-secret-in-production":
+            print(
+                "[FATAL] SECRET_KEY is set to the default value. "
+                "Set a secure SECRET_KEY in your .env file.",
+                file=sys.stderr,
+            )
+            sys.exit(1)
 
 
 settings = Settings()

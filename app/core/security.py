@@ -7,9 +7,10 @@ from jose import JWTError, jwt
 
 from app.core.config import settings
 
+_revoked_tokens: set[str] = set()
+
 
 def _bcrypt_input(password: str) -> bytes:
-    # bcrypt accepts up to 72 bytes. Pre-hash to a fixed-length digest first.
     digest = hashlib.sha256(password.encode("utf-8")).digest()
     return base64.b64encode(digest)
 
@@ -37,3 +38,11 @@ def decode_access_token(token: str) -> dict | None:
         return jwt.decode(token, settings.secret_key, algorithms=[settings.algorithm])
     except JWTError:
         return None
+
+
+def revoke_token(token: str) -> None:
+    _revoked_tokens.add(token)
+
+
+def is_token_revoked(token: str) -> bool:
+    return token in _revoked_tokens

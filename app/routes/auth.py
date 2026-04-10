@@ -1,14 +1,16 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
+from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.core.db import get_db
-from app.core.security import create_access_token, get_password_hash, verify_password
+from app.core.security import create_access_token, get_password_hash, revoke_token, verify_password
 from app.dependencies.auth import get_current_user
 from app.models.user import User
 from app.schemas.auth import TokenResponse, UserLogin, UserMeResponse, UserRegister
 
 router = APIRouter(prefix="/auth", tags=["auth"])
+bearer_scheme = HTTPBearer(auto_error=False)
 
 
 @router.post("/register", response_model=UserMeResponse, status_code=status.HTTP_201_CREATED)
@@ -50,3 +52,15 @@ def login(payload: UserLogin, db: Session = Depends(get_db)):
 @router.get("/me", response_model=UserMeResponse)
 def me(user: User = Depends(get_current_user)):
     return user
+
+
+@router.post("/logout", status_code=status.HTTP_204_NO_CONTENT)
+def logout(
+    request: Request,
+    user: User = Depends(get_current_user),
+):
+    auth_header = request.headers.get("Authorization", "")
+    if auth_header.startswith("Bearer "):
+        token = auth_header[7:]
+        revoke_token(token)
+    return None

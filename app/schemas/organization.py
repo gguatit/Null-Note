@@ -5,9 +5,17 @@ class NamedItemCreate(BaseModel):
     name: str = Field(min_length=1, max_length=100)
 
 
+class NamedItemUpdate(BaseModel):
+    name: str | None = Field(default=None, min_length=1, max_length=100)
+
+
 class NamedItemResponse(BaseModel):
     id: int
     user_id: int
     name: str
 
     model_config = {"from_attributes": True}
+
+
+class NoteAssignRequest(BaseModel):
+    note_id: int

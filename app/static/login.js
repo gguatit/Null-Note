@@ -4,22 +4,7 @@ if (localStorage.getItem("nullnote_token")) {
 
 const form = document.getElementById("loginForm");
 const message = document.getElementById("authMessage");
-const themeToggleBtn = document.getElementById("themeToggleBtn");
 const usernameInput = document.getElementById("username");
-
-if (themeToggleBtn && window.NullNoteTheme?.getTheme) {
-  const syncThemeButton = () => {
-    const dark = window.NullNoteTheme.getTheme() === "dark";
-    themeToggleBtn.textContent = dark ? "☀" : "◐";
-      themeToggleBtn.title = dark ? "라이트 모드 전환" : "다크 모드 전환";
-  };
-
-  syncThemeButton();
-  themeToggleBtn.addEventListener("click", () => {
-    window.NullNoteTheme.toggleTheme();
-    syncThemeButton();
-  });
-}
 
 function setMessage(text, isError = false) {
   message.textContent = text;

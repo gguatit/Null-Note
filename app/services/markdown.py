@@ -62,6 +62,6 @@ def render_markdown(content: str) -> str:
     html = markdown.markdown(
         normalized,
         extensions=["fenced_code", "tables", "sane_lists", "nl2br", "toc", "codehilite"],
-        output_format="html5",
+        output_format="html",
     )
     return bleach.clean(html, tags=ALLOWED_TAGS, attributes=ALLOWED_ATTRIBUTES, strip=True)

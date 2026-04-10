@@ -20,14 +20,27 @@ const DEFAULT_SETTINGS = {
 
 const state = {
   token,
-  isAuthenticated: Boolean(token),
+  isAuthenticated: false,
   notes: [],
   currentNoteId: null,
   isDirty: false,
   isSaving: false,
   autoSaveTimer: null,
   settings: { ...DEFAULT_SETTINGS, ...JSON.parse(localStorage.getItem(STORAGE_KEY) || "{}") },
+  folders: [],
+  tags: [],
+  activeFolderId: null,
+  activeTagId: null,
+  sidebarContextFolderId: null,
+  sidebarContextFolderPath: null,
+  notePagination: { total: 0, limit: 50, offset: 0 },
 };
+
+function escapeHtml(text) {
+  const d = document.createElement("div");
+  d.appendChild(document.createTextNode(text));
+  return d.innerHTML;
+}
 
 const el = {
   appLayout: document.getElementById("appLayout"),
@@ -39,7 +52,6 @@ const el = {
   settingsToggleBtn: document.getElementById("settingsToggleBtn"),
   settingsPanel: document.getElementById("settingsPanel"),
   logoutBtn: document.getElementById("logoutBtn"),
-  loginCtaBtn: document.getElementById("loginCtaBtn"),
   themeToggleBtn: document.getElementById("themeToggleBtn"),
   guestBadge: document.getElementById("guestBadge"),
   searchInput: document.getElementById("searchInput"),
@@ -51,6 +63,7 @@ const el = {
   preview: document.getElementById("preview"),
   previewQuickToggleBtn: document.getElementById("previewQuickToggleBtn"),
   isPublic: document.getElementById("isPublic"),
+  pinNoteBtn: document.getElementById("pinNoteBtn"),
   saveNoteBtn: document.getElementById("saveNoteBtn"),
   deleteNoteBtn: document.getElementById("deleteNoteBtn"),
   copyPublicLinkBtn: document.getElementById("copyPublicLinkBtn"),
@@ -77,13 +90,27 @@ const el = {
   contextMenuSearch: document.getElementById("contextMenuSearch"),
   contextButtons: Array.from(document.querySelectorAll("#editorContextMenu button[data-action]")),
   toastArea: document.getElementById("toastArea"),
+  sidebarWorkspace: document.getElementById("sidebarWorkspace"),
+  folderTree: document.getElementById("folderTree"),
+  sidebarContextMenu: document.getElementById("sidebarContextMenu"),
+  sidebarMenuCreateFolder: document.getElementById("sidebarMenuCreateFolder"),
+  sidebarMenuCreateFile: document.getElementById("sidebarMenuCreateFile"),
+  sidebarMenuCreateSubfolder: document.getElementById("sidebarMenuCreateSubfolder"),
+  sidebarMenuCreateFileInFolder: document.getElementById("sidebarMenuCreateFileInFolder"),
+  tagList: document.getElementById("tagList"),
+  filterAllBtn: document.getElementById("filterAllBtn"),
+  filterFolderBtn: document.getElementById("filterFolderBtn"),
+  filterTagBtn: document.getElementById("filterTagBtn"),
+  noteMeta: document.getElementById("noteMeta"),
+  noteFolderChips: document.getElementById("noteFolderChips"),
+  noteTagChips: document.getElementById("noteTagChips"),
 };
 
 let dragState = null;
 let contextMenuApi = null;
 
 marked.setOptions({ breaks: true, gfm: true });
-mermaid.initialize({ startOnLoad: false, securityLevel: "loose" });
+mermaid.initialize({ startOnLoad: false, securityLevel: "strict" });
 
 function saveSettings() {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(state.settings));
@@ -134,7 +161,6 @@ function applySettings() {
   el.contentInput.style.lineHeight = String(state.settings.lineHeight);
   el.editorContent.style.setProperty("--editor-split", `${state.settings.splitRatio}%`);
   el.editorContent.classList.toggle("preview-hidden", !state.settings.showPreview);
-  el.editorContent.classList.toggle("reduce-motion", state.settings.reduceMotion);
   el.preview.style.display = state.settings.showPreview ? "block" : "none";
   el.editorSplitter.style.display = state.settings.showPreview ? "block" : "none";
 
@@ -153,8 +179,13 @@ function applySettings() {
   document.body.classList.toggle("dark-mode", state.settings.darkMode);
 
   if (el.themeToggleBtn) {
-    el.themeToggleBtn.textContent = state.settings.darkMode ? "☀" : "◐";
     el.themeToggleBtn.title = state.settings.darkMode ? "라이트 모드 전환" : "다크 모드 전환";
+    const moonIcon = el.themeToggleBtn.querySelector(".icon-moon");
+    const sunIcon = el.themeToggleBtn.querySelector(".icon-sun");
+    if (moonIcon && sunIcon) {
+      moonIcon.style.display = state.settings.darkMode ? "none" : "";
+      sunIcon.style.display = state.settings.darkMode ? "" : "none";
+    }
   }
 }
 
@@ -182,6 +213,7 @@ function updateProtectedControls() {
     el.importMdInput,
     el.duplicateNoteBtn,
     el.isPublic,
+    el.pinNoteBtn,
   ];
 
   for (const node of protectedControls) {
@@ -262,7 +294,6 @@ async function api(path, options = {}) {
 
 function updateAuthButton() {
   el.logoutBtn.textContent = state.isAuthenticated ? "로그아웃" : "로그인";
-  el.loginCtaBtn.hidden = state.isAuthenticated;
   el.guestBadge.hidden = state.isAuthenticated;
   updateProtectedControls();
 }
@@ -315,6 +346,27 @@ function enhanceMermaid(root) {
   }
 }
 
+function addCopyButtons(root) {
+  const pres = root.querySelectorAll("pre");
+  for (const pre of pres) {
+    if (pre.querySelector(".copy-code-btn")) {
+      continue;
+    }
+    const btn = document.createElement("button");
+    btn.className = "copy-code-btn";
+    btn.textContent = "복사";
+    btn.addEventListener("click", () => {
+      const code = pre.querySelector("code");
+      navigator.clipboard.writeText(code?.textContent || pre.textContent || "").then(() => {
+        btn.textContent = "복사됨";
+        setTimeout(() => { btn.textContent = "복사"; }, 1500);
+      });
+    });
+    pre.style.position = "relative";
+    pre.appendChild(btn);
+  }
+}
+
 function updateTextStats() {
   const content = el.contentInput.value || "";
   const count = content.length;
@@ -337,8 +389,9 @@ function insertAtCursor(snippet) {
 
 async function renderPreview() {
   const html = marked.parse(normalizeMermaidMarkdown(el.contentInput.value || ""));
-  el.preview.innerHTML = html;
+  el.preview.innerHTML = DOMPurify.sanitize(html);
   enhanceMermaid(el.preview);
+  addCopyButtons(el.preview);
   Prism.highlightAllUnder(el.preview);
   await mermaid.run({ nodes: el.preview.querySelectorAll(".mermaid") });
 }
@@ -348,6 +401,8 @@ function clearEditor() {
   el.titleInput.value = "";
   el.contentInput.value = "";
   el.isPublic.checked = false;
+  el.pinNoteBtn.classList.remove("pinned");
+  el.noteMeta.hidden = true;
   state.isDirty = false;
   setSaveState("새 노트");
   updateTextStats();
@@ -360,24 +415,73 @@ function fillEditor(note) {
   el.titleInput.value = note.title;
   el.contentInput.value = note.content;
   el.isPublic.checked = note.is_public;
+  el.pinNoteBtn.classList.toggle("pinned", note.is_pinned);
+  el.noteMeta.hidden = !state.isAuthenticated;
+  populateMetaChips(note);
   state.isDirty = false;
   setSaveState("불러옴");
   updateTextStats();
   renderPreview().catch(() => {});
 }
 
+function populateMetaChips(note) {
+  const noteFolders = note.folders || [];
+  const noteTags = note.tags || [];
+
+  el.noteFolderChips.innerHTML = "";
+  for (const f of state.folders) {
+    const isActive = noteFolders.some((nf) => nf.id === f.id);
+    const chip = document.createElement("button");
+    chip.type = "button";
+    chip.className = "meta-chip" + (isActive ? " active" : "");
+    chip.textContent = f.name;
+    chip.dataset.id = f.id;
+    chip.addEventListener("click", () => {
+      chip.classList.toggle("active");
+      setDirty(true);
+      scheduleAutoSave();
+    });
+    el.noteFolderChips.appendChild(chip);
+  }
+
+  el.noteTagChips.innerHTML = "";
+  for (const t of state.tags) {
+    const isActive = noteTags.some((nt) => nt.id === t.id);
+    const chip = document.createElement("button");
+    chip.type = "button";
+    chip.className = "meta-chip" + (isActive ? " active" : "");
+    chip.textContent = t.name;
+    chip.dataset.id = t.id;
+    chip.addEventListener("click", () => {
+      chip.classList.toggle("active");
+      setDirty(true);
+      scheduleAutoSave();
+    });
+    el.noteTagChips.appendChild(chip);
+  }
+}
+
 function renderNoteList() {
   el.noteList.innerHTML = "";
 
   const query = el.searchInput.value.trim().toLowerCase();
-  const filtered = !query
-    ? state.notes
-    : state.notes.filter((note) => {
-        return (
-          (note.title || "").toLowerCase().includes(query) ||
-          (note.content || "").toLowerCase().includes(query)
-        );
-      });
+  let filtered = state.notes;
+
+  if (state.activeFolderId) {
+    filtered = filtered.filter((n) => (n.folders || []).some((f) => f.id === state.activeFolderId));
+  }
+  if (state.activeTagId) {
+    filtered = filtered.filter((n) => (n.tags || []).some((t) => t.id === state.activeTagId));
+  }
+
+  if (query) {
+    filtered = filtered.filter((note) => {
+      return (
+        (note.title || "").toLowerCase().includes(query) ||
+        (note.content || "").toLowerCase().includes(query)
+      );
+    });
+  }
 
   if (filtered.length === 0) {
     const empty = document.createElement("li");
@@ -388,21 +492,268 @@ function renderNoteList() {
   }
 
   for (const note of filtered) {
+    const noteFolders = note.folders || [];
+    const primaryFolder = noteFolders
+      .slice()
+      .sort((a, b) => (b.name?.split("/").length || 0) - (a.name?.split("/").length || 0))[0];
+    const depth = primaryFolder ? Math.max(0, primaryFolder.name.split("/").length - 1) : 0;
+
     const li = document.createElement("li");
-    li.className = "note-item";
+    li.className = "note-item file-entry";
+    li.style.setProperty("--file-depth", String(depth));
     if (state.currentNoteId === note.id) {
       li.classList.add("active");
     }
+    if (note.is_pinned) {
+      li.classList.add("pinned");
+    }
 
+    const folderText = primaryFolder ? primaryFolder.name : "루트";
+    const visibility = note.is_public ? "공개" : "비공개";
+    const dateText = new Date(note.updated_at || note.created_at).toLocaleDateString();
     li.innerHTML = `
-      <strong>${note.title || "Untitled"}</strong>
-      <span>${note.is_public ? "공개" : "비공개"} · ${new Date(note.updated_at).toLocaleDateString()}</span>
+      <strong class="file-title">📄 ${escapeHtml(note.title || "Untitled")}</strong>
+      <span class="file-meta">${escapeHtml(folderText)} · ${visibility} · ${dateText}</span>
     `;
     li.addEventListener("click", () => {
       fillEditor(note);
       renderNoteList();
     });
     el.noteList.appendChild(li);
+  }
+}
+
+function closeSidebarContextMenu() {
+  if (!el.sidebarContextMenu) {
+    return;
+  }
+  el.sidebarContextMenu.hidden = true;
+  el.sidebarContextMenu.style.display = "";
+  state.sidebarContextFolderId = null;
+  state.sidebarContextFolderPath = null;
+}
+
+function openSidebarContextMenu(clientX, clientY, { folderId = null, folderPath = null } = {}) {
+  if (!el.sidebarContextMenu) {
+    return;
+  }
+  state.sidebarContextFolderId = folderId;
+  state.sidebarContextFolderPath = folderPath;
+  el.sidebarMenuCreateSubfolder.hidden = !folderId;
+  el.sidebarMenuCreateFileInFolder.hidden = !folderId;
+  el.sidebarMenuCreateFolder.hidden = Boolean(folderId);
+  el.sidebarMenuCreateFile.hidden = Boolean(folderId);
+
+  el.sidebarContextMenu.hidden = false;
+  el.sidebarContextMenu.style.display = "";
+  const menuWidth = 220;
+  const menuHeight = 180;
+  const left = Math.min(clientX, window.innerWidth - menuWidth - 8);
+  const top = Math.min(clientY, window.innerHeight - menuHeight - 8);
+  el.sidebarContextMenu.style.left = `${Math.max(8, left)}px`;
+  el.sidebarContextMenu.style.top = `${Math.max(8, top)}px`;
+}
+
+async function createFolderFromContext(parentFolderId = null, parentFolderPath = null) {
+  if (!requireAuth("폴더 생성")) {
+    return;
+  }
+  const input = prompt(parentFolderId ? "하위 폴더 이름" : "폴더 이름");
+  const name = (input || "").trim();
+  if (!name) {
+    return;
+  }
+
+  let finalName = name;
+  if (parentFolderId || parentFolderPath) {
+    const parentName = parentFolderPath || state.folders.find((f) => f.id === parentFolderId)?.name;
+    if (!parentName) {
+      toast("부모 폴더를 찾을 수 없습니다.", "warn");
+      return;
+    }
+    // Backend is currently flat; use path notation to represent nested folders.
+    finalName = `${parentName}/${name}`;
+  }
+
+  try {
+    await api("/folders", { method: "POST", body: JSON.stringify({ name: finalName }) });
+    await loadFolders();
+    toast(parentFolderId ? "하위 폴더를 만들었습니다." : "폴더를 만들었습니다.", "success");
+  } catch (err) {
+    toast(err.message || "폴더 생성에 실패했습니다.", "warn");
+  }
+}
+
+async function ensureFolderIdByPath(folderPath) {
+  if (!folderPath) {
+    return null;
+  }
+  let folder = state.folders.find((f) => f.name === folderPath);
+  if (folder) {
+    return folder.id;
+  }
+  await api("/folders", { method: "POST", body: JSON.stringify({ name: folderPath }) });
+  await loadFolders();
+  folder = state.folders.find((f) => f.name === folderPath);
+  return folder ? folder.id : null;
+}
+
+async function createFileFromContext(folderId = null, folderPath = null) {
+  if (!requireAuth("노트 생성")) {
+    return;
+  }
+  const input = prompt("파일(노트) 제목", "Untitled");
+  const title = (input || "").trim() || "Untitled";
+
+  const payload = {
+    title,
+    content: "",
+    is_public: false,
+    is_pinned: false,
+  };
+  try {
+    let targetFolderId = folderId;
+    if (!targetFolderId && folderPath) {
+      targetFolderId = await ensureFolderIdByPath(folderPath);
+    }
+    if (targetFolderId) {
+      payload.folder_ids = [targetFolderId];
+    }
+
+    let created = await api("/notes", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    });
+
+    // Defensive fallback: if backend response misses folder mapping, patch it once.
+    if (targetFolderId && !(created.folders || []).some((f) => f.id === targetFolderId)) {
+      created = await api(`/notes/${created.id}`, {
+        method: "PUT",
+        body: JSON.stringify({ folder_ids: [targetFolderId] }),
+      });
+    }
+
+    if (targetFolderId) {
+      state.activeFolderId = targetFolderId;
+      state.activeTagId = null;
+      el.filterFolderBtn.hidden = false;
+      el.filterTagBtn.hidden = true;
+    }
+
+    state.notes.unshift(created);
+    fillEditor(created);
+    await loadMyNotes();
+    updateFilterButtons();
+    renderNoteList();
+    toast(targetFolderId ? "폴더에 파일을 만들었습니다." : "파일을 만들었습니다.", "success");
+  } catch (err) {
+    toast(err.message || "파일 생성에 실패했습니다.", "warn");
+  }
+}
+
+function renderFolders() {
+  if (!el.folderTree) {
+    return;
+  }
+  el.folderTree.innerHTML = "";
+
+  const folders = [...state.folders].sort((a, b) => a.name.localeCompare(b.name, "ko"));
+
+  for (const f of folders) {
+    const parts = (f.name || "").split("/");
+    const depth = Math.max(0, parts.length - 1);
+    const displayName = parts[parts.length - 1] || f.name;
+
+    const li = document.createElement("li");
+    li.className = "folder-node";
+    li.style.setProperty("--folder-depth", String(depth));
+    if (state.activeFolderId === f.id) {
+      li.classList.add("active");
+    }
+
+    li.innerHTML = `<button class="folder-row" type="button" data-folder-id="${f.id}" data-folder-path="${escapeHtml(
+      f.name
+    )}">
+      <span class="folder-label">📁 ${escapeHtml(displayName)}</span>
+    </button>`;
+
+    li.querySelector(".folder-row").addEventListener("click", () => {
+      if (state.activeFolderId === f.id) {
+        state.activeFolderId = null;
+        el.filterFolderBtn.hidden = true;
+      } else {
+        state.activeFolderId = f.id;
+        state.activeTagId = null;
+        el.filterFolderBtn.hidden = false;
+        el.filterTagBtn.hidden = true;
+      }
+      updateFilterButtons();
+      renderNoteList();
+    });
+
+    li.querySelector(".folder-row").addEventListener("contextmenu", (e) => {
+      e.stopPropagation();
+      e.preventDefault();
+      openSidebarContextMenu(e.clientX, e.clientY, { folderId: f.id, folderPath: f.name });
+    });
+
+    el.folderTree.appendChild(li);
+  }
+}
+
+function renderTags() {
+  if (!el.tagList) {
+    return;
+  }
+  el.tagList.innerHTML = "";
+  for (const t of state.tags) {
+    const span = document.createElement("span");
+    span.className = "sidebar-tag";
+    if (state.activeTagId === t.id) {
+      span.classList.add("active");
+    }
+    span.innerHTML = `${escapeHtml(t.name)}<button class="icon-btn icon-btn-xs tag-delete-btn" data-id="${t.id}" title="삭제">✕</button>`;
+    span.addEventListener("click", (e) => {
+      if (e.target.closest(".tag-delete-btn")) return;
+      if (state.activeTagId === t.id) {
+        state.activeTagId = null;
+        el.filterTagBtn.hidden = true;
+      } else {
+        state.activeTagId = t.id;
+        state.activeFolderId = null;
+        el.filterTagBtn.hidden = false;
+        el.filterFolderBtn.hidden = true;
+      }
+      updateFilterButtons();
+      renderNoteList();
+    });
+    span.querySelector(".tag-delete-btn").addEventListener("click", async (e) => {
+      e.stopPropagation();
+      await api(`/tags/${t.id}`, { method: "DELETE" });
+      await loadTags();
+      toast("태그를 삭제했습니다.", "success");
+    });
+    el.tagList.appendChild(span);
+  }
+}
+
+function updateFilterButtons() {
+  el.filterAllBtn.classList.toggle("active", !state.activeFolderId && !state.activeTagId);
+  el.filterFolderBtn.classList.toggle("active", Boolean(state.activeFolderId));
+  el.filterTagBtn.classList.toggle("active", Boolean(state.activeTagId));
+  const folderName = state.activeFolderId
+    ? (state.folders.find((f) => f.id === state.activeFolderId)?.name || "")
+    : "";
+  const tagName = state.activeTagId
+    ? (state.tags.find((t) => t.id === state.activeTagId)?.name || "")
+    : "";
+  el.filterFolderBtn.textContent = folderName ? folderName : "";
+  el.filterTagBtn.textContent = tagName ? tagName : "";
+  if (state.activeFolderId) {
+    el.filterFolderBtn.hidden = false;
+  }
+  if (state.activeTagId) {
+    el.filterTagBtn.hidden = false;
   }
 }
 
@@ -415,9 +766,11 @@ async function loadMyNotes() {
   }
 
   try {
-    state.notes = await api("/notes/user");
-  } catch (error) {
-    throw error;
+    const data = await api("/notes/user");
+    state.notes = data.items;
+    state.notePagination = { total: data.total, limit: data.limit, offset: data.offset };
+  } catch {
+    state.notes = [];
   }
 
   if (state.currentNoteId) {
@@ -428,6 +781,34 @@ async function loadMyNotes() {
   }
 
   renderNoteList();
+}
+
+async function loadFolders() {
+  if (!state.isAuthenticated) {
+    state.folders = [];
+    renderFolders();
+    return;
+  }
+  try {
+    state.folders = await api("/folders");
+  } catch {
+    state.folders = [];
+  }
+  renderFolders();
+}
+
+async function loadTags() {
+  if (!state.isAuthenticated) {
+    state.tags = [];
+    renderTags();
+    return;
+  }
+  try {
+    state.tags = await api("/tags");
+  } catch {
+    state.tags = [];
+  }
+  renderTags();
 }
 
 async function saveCurrentNote({ silent = false } = {}) {
@@ -443,7 +824,15 @@ async function saveCurrentNote({ silent = false } = {}) {
     title: el.titleInput.value.trim() || "Untitled",
     content: el.contentInput.value,
     is_public: el.isPublic.checked,
+    is_pinned: state.currentNoteId
+      ? state.notes.find((n) => n.id === state.currentNoteId)?.is_pinned || false
+      : false,
   };
+
+  if (state.currentNoteId) {
+    payload.folder_ids = Array.from(el.noteFolderChips.querySelectorAll(".meta-chip.active")).map((c) => Number(c.dataset.id));
+    payload.tag_ids = Array.from(el.noteTagChips.querySelectorAll(".meta-chip.active")).map((c) => Number(c.dataset.id));
+  }
 
   state.isSaving = true;
   el.saveNoteBtn.disabled = true;
@@ -574,20 +963,11 @@ function duplicateCurrentNote() {
 }
 
 function logout() {
-  if (!state.isAuthenticated) {
-    location.href = "/login";
-    return;
+  if (state.isAuthenticated) {
+    api("/auth/logout", { method: "POST" }).catch(() => {});
   }
-
-  state.token = "";
-  state.isAuthenticated = false;
   localStorage.removeItem("nullnote_token");
-  state.notes = [];
-  state.currentNoteId = null;
-  updateAuthButton();
-  renderNoteList();
-  clearEditor();
-  toast("로그아웃되었습니다.");
+  location.href = "/login";
 }
 
 el.sidebarToggleBtn.addEventListener("click", () => {
@@ -612,9 +992,6 @@ el.themeToggleBtn?.addEventListener("click", () => {
 });
 
 el.logoutBtn.addEventListener("click", logout);
-el.loginCtaBtn.addEventListener("click", () => {
-  location.href = "/login";
-});
 el.newNoteBtn.addEventListener("click", clearEditor);
 el.refreshNotesBtn.addEventListener("click", () => loadMyNotes().catch((e) => toast(e.message, "warn")));
 el.saveNoteBtn.addEventListener("click", () => saveCurrentNote().catch((e) => toast(e.message, "warn")));
@@ -623,6 +1000,119 @@ el.copyPublicLinkBtn.addEventListener("click", () => copyPublicLink().catch((e) 
 el.exportMdBtn.addEventListener("click", exportMarkdown);
 el.duplicateNoteBtn.addEventListener("click", duplicateCurrentNote);
 el.resetSettingsBtn.addEventListener("click", resetSettingsToDefault);
+
+el.pinNoteBtn?.addEventListener("click", () => {
+  if (!requireAuth("고정")) return;
+  const current = state.notes.find((n) => n.id === state.currentNoteId);
+  if (!current) {
+    toast("노트를 먼저 선택하세요.", "warn");
+    return;
+  }
+  current.is_pinned = !current.is_pinned;
+  el.pinNoteBtn.classList.toggle("pinned", current.is_pinned);
+  setDirty(true);
+  renderNoteList();
+});
+
+el.sidebarWorkspace?.addEventListener("contextmenu", (e) => {
+  if (e.target.closest(".folder-row")) {
+    return;
+  }
+  e.preventDefault();
+  openSidebarContextMenu(e.clientX, e.clientY);
+});
+
+el.sidebarMenuCreateFolder?.addEventListener("click", async () => {
+  closeSidebarContextMenu();
+  await createFolderFromContext(null);
+});
+
+el.sidebarMenuCreateFile?.addEventListener("click", async () => {
+  closeSidebarContextMenu();
+  await createFileFromContext(null);
+});
+
+
+el.sidebarMenuCreateSubfolder?.addEventListener("click", async () => {
+  const folderId = state.sidebarContextFolderId;
+  const folderPath = state.sidebarContextFolderPath;
+  closeSidebarContextMenu();
+  if (!folderId && !folderPath) {
+    return;
+  }
+  await createFolderFromContext(folderId, folderPath);
+});
+
+el.sidebarMenuCreateFileInFolder?.addEventListener("click", async () => {
+  const folderId = state.sidebarContextFolderId;
+  const folderPath = state.sidebarContextFolderPath;
+  closeSidebarContextMenu();
+  if (!folderId && !folderPath) {
+    return;
+  }
+  await createFileFromContext(folderId, folderPath);
+});
+
+// 폴더 삭제
+el.sidebarMenuDeleteFolder?.addEventListener("click", async () => {
+  const folderId = state.sidebarContextFolderId;
+  closeSidebarContextMenu();
+  if (!folderId) {
+    toast("삭제할 폴더를 찾을 수 없습니다.", "warn");
+    return;
+  }
+  if (!confirm("정말 이 폴더를 삭제할까요? 폴더 내 파일은 삭제되지 않으며, 폴더 연결만 해제됩니다.")) {
+    return;
+  }
+  try {
+    await api(`/folders/${folderId}`, { method: "DELETE" });
+    await loadFolders();
+    toast("폴더를 삭제했습니다.", "success");
+    // 폴더 삭제 시 해당 폴더가 활성화되어 있으면 해제
+    if (state.activeFolderId === folderId) {
+      state.activeFolderId = null;
+      updateFilterButtons();
+      renderNoteList();
+    }
+  } catch (err) {
+    toast(err.message || "폴더 삭제에 실패했습니다.", "warn");
+  }
+});
+
+// 파일(노트) 삭제
+el.sidebarMenuDeleteFile?.addEventListener("click", async () => {
+  // context menu에서 파일 id를 추적해야 함
+  // 현재는 noteList에서 클릭된 파일이 state.currentNoteId로만 추적됨
+  // 개선: context menu 열 때 파일 id도 state에 저장하도록 확장 필요
+  // 임시로 현재 에디터에 열려있는 노트만 삭제 지원
+  closeSidebarContextMenu();
+  const noteId = state.currentNoteId;
+  if (!noteId) {
+    toast("삭제할 파일(노트)을 선택하세요.", "warn");
+    return;
+  }
+  if (!confirm("정말 이 파일(노트)을 삭제할까요?")) {
+    return;
+  }
+  try {
+    await api(`/notes/${noteId}`, { method: "DELETE" });
+    state.notes = state.notes.filter((n) => n.id !== noteId);
+    clearEditor();
+    renderNoteList();
+    toast("파일(노트)를 삭제했습니다.", "success");
+  } catch (err) {
+    toast(err.message || "파일 삭제에 실패했습니다.", "warn");
+  }
+});
+
+el.filterAllBtn.addEventListener("click", () => {
+  state.activeFolderId = null;
+  state.activeTagId = null;
+  el.filterFolderBtn.hidden = true;
+  el.filterTagBtn.hidden = true;
+  updateFilterButtons();
+  renderNoteList();
+});
 
 el.searchInput.addEventListener("input", () => {
   renderNoteList();
@@ -640,7 +1130,18 @@ el.importMdInput.addEventListener("change", (event) => {
 document.addEventListener("keydown", (event) => {
   if (event.key === "Escape") {
     closeContextMenu();
+    closeSidebarContextMenu();
   }
+});
+
+document.addEventListener("click", (event) => {
+  if (!el.sidebarContextMenu || el.sidebarContextMenu.hidden) {
+    return;
+  }
+  if (el.sidebarContextMenu.contains(event.target)) {
+    return;
+  }
+  closeSidebarContextMenu();
 });
 
 el.editorSplitter.addEventListener("mousedown", (event) => {
@@ -775,9 +1276,23 @@ window.addEventListener("beforeunload", (event) => {
 });
 
 (async function init() {
+  closeSidebarContextMenu();
+
   if (window.NullNoteTheme?.getTheme) {
     state.settings.darkMode = window.NullNoteTheme.getTheme() === "dark";
   }
+
+  if (token) {
+    try {
+      await api("/auth/me");
+      state.isAuthenticated = true;
+    } catch {
+      state.token = "";
+      state.isAuthenticated = false;
+      localStorage.removeItem("nullnote_token");
+    }
+  }
+
   updateAuthButton();
   applySettings();
 
@@ -799,7 +1314,7 @@ window.addEventListener("beforeunload", (event) => {
 
   clearEditor();
   try {
-    await loadMyNotes();
+    await Promise.all([loadMyNotes(), loadFolders(), loadTags()]);
   } catch (error) {
     toast(error.message || "초기 로딩에 실패했습니다.", "warn");
     state.notes = [];

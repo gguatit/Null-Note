@@ -27,9 +27,22 @@
     return "light";
   }
 
+  function applyThemeSync(btn, mode) {
+    const moonIcon = btn.querySelector(".icon-moon");
+    const sunIcon = btn.querySelector(".icon-sun");
+    if (moonIcon && sunIcon) {
+      moonIcon.style.display = mode === "dark" ? "none" : "";
+      sunIcon.style.display = mode === "dark" ? "" : "none";
+    }
+    btn.title = mode === "dark" ? "라이트 모드 전환" : "다크 모드 전환";
+  }
+
   function applyTheme(mode) {
     document.body.classList.toggle("dark-mode", mode === "dark");
     document.documentElement.setAttribute("data-theme", mode);
+    document.querySelectorAll("[id='themeToggleBtn']").forEach(function (btn) {
+      applyThemeSync(btn, mode);
+    });
   }
 
   function setTheme(mode) {

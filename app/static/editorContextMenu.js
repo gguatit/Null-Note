@@ -169,14 +169,6 @@
       if (!button || !action) {
         return;
       }
-      const existingBadge = button.querySelector(".context-help-badge");
-      if (!existingBadge) {
-        const badge = document.createElement("span");
-        badge.className = "context-help-badge";
-        badge.textContent = "?";
-        badge.setAttribute("aria-hidden", "true");
-        button.appendChild(badge);
-      }
 
       button.addEventListener("mouseenter", () => showHelpTooltip(button, action));
       button.addEventListener("focus", () => showHelpTooltip(button, action));
