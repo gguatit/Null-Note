@@ -36,12 +36,14 @@ body.dark-mode {
 
 html {
   height: 100%;
+  overflow: hidden;
   background-color: var(--bg);
 }
 
 body {
   margin: 0;
-  min-height: 100%;
+  height: 100%;
+  overflow: hidden;
   color: var(--text);
   background: linear-gradient(120deg, var(--bg), var(--surface-2) 60%, var(--bg));
   background-attachment: fixed;
@@ -257,9 +259,10 @@ select:disabled {
 }
 
 .app-body {
-  min-height: 100vh;
+  height: 100%;
   display: flex;
   flex-direction: column;
+  overflow: hidden;
 }
 
 .app-topbar {
@@ -337,7 +340,8 @@ body.dark-mode .app-topbar {
   grid-template-columns: 240px 1fr 240px;
   gap: 12px;
   padding: 12px;
-  height: calc(100vh - 70px);
+  flex: 1;
+  min-height: 0;
   transition: grid-template-columns 0.28s ease;
 }
 
@@ -564,6 +568,8 @@ body.dark-mode .app-topbar {
   flex-direction: column;
   padding: 12px;
   min-width: 0;
+  min-height: 0;
+  overflow: hidden;
   transition: transform 0.28s ease;
 }
 
@@ -770,6 +776,8 @@ body.dragging-splitter {
   display: flex;
   flex-direction: column;
   gap: 10px;
+  overflow-y: auto;
+  min-height: 0;
   transition: transform 0.26s ease, opacity 0.26s ease;
 }
 
@@ -1593,6 +1601,17 @@ body.dark-mode .auth-message {
 }
 
 @media (max-width: 980px) {
+  html,
+  body {
+    overflow: auto;
+    height: auto;
+  }
+
+  .app-body {
+    height: auto;
+    overflow: auto;
+  }
+
   .app-layout {
     grid-template-areas: "editor";
     grid-template-columns: 1fr;
