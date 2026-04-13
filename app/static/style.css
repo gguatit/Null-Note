@@ -119,6 +119,9 @@ select:disabled {
   background: var(--surface);
   color: var(--text);
   cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
 }
 
 #themeToggleBtn {
