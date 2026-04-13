@@ -12,7 +12,7 @@
       rel="stylesheet"
     />
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/themes/prism.min.css" />
-    <link rel="stylesheet" href="/style.css?v=20260412i" />
+    <link rel="stylesheet" href="/style.css?v=20260413a" />
   </head>
   <body class="app-body">
     <header class="app-topbar">
@@ -162,13 +162,17 @@
           <button id="previewQuickToggleBtn" class="btn ghost" type="button">미리보기</button>
           <button id="saveNoteBtn" class="btn">저장</button>
           <button id="deleteNoteBtn" class="btn ghost">삭제</button>
-          <button id="copyPublicLinkBtn" class="btn ghost">공개링크</button>
+          <button id="copyPublicLinkBtn" class="btn ghost">공유링크</button>
         </div>
         <div class="setting-actions">
           <button id="exportMdBtn" class="btn ghost">MD 내보내기</button>
           <label class="btn ghost file-btn">
             MD 불러오기
             <input id="importMdInput" type="file" accept=".md,text/markdown,text/plain" />
+          </label>
+          <label class="btn ghost file-btn">
+            이미지 업로드
+            <input id="imageUploadBtn" type="file" accept="image/jpeg,image/png,image/gif,image/webp,image/svg+xml" />
           </label>
           <button id="duplicateNoteBtn" class="btn ghost">노트 복제</button>
           <button id="resetSettingsBtn" class="btn ghost">설정 초기화</button>
@@ -241,6 +245,6 @@
     <script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/prism-markup.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
     <script src="/editorContextMenu.js?v=20260411a"></script>
-    <script src="/dashboard.js?v=20260412f"></script>
+    <script src="/dashboard.js?v=20260413a"></script>
   </body>
 </html>

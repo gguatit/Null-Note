@@ -161,7 +161,7 @@ def update_note(
     if payload.content is not None and payload.content != note.content:
         should_save_version = True
 
-    if should_save_version:
+    if should_save_version and not payload.is_autosave:
         version = NoteVersion(note_id=note.id, title=note.title, content=note.content)
         db.add(version)
 

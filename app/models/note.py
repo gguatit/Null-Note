@@ -25,3 +25,4 @@ class Note(Base):
     folders = relationship("Folder", secondary=note_folders, back_populates="notes")
     tags = relationship("Tag", secondary=note_tags, back_populates="notes")
     versions = relationship("NoteVersion", back_populates="note", cascade="all, delete-orphan")
+    share_links = relationship("ShareLink", back_populates="note", cascade="all, delete-orphan")

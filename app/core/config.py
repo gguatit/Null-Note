@@ -1,4 +1,5 @@
 import sys
+from pathlib import Path
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
@@ -12,6 +13,7 @@ class Settings(BaseSettings):
     access_token_expire_minutes: int = 60 * 24
     database_url: str = "postgresql+psycopg://postgres:postgres@localhost:5432/nullnote"
     cors_origins: str = "*"
+    upload_dir: str = str(Path(__file__).resolve().parent.parent.parent / "uploads")
 
     def check_production_safety(self) -> None:
         if self.secret_key == "change-this-secret-in-production":

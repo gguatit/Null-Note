@@ -12,8 +12,10 @@ from slowapi.util import get_remote_address
 from app.core.config import settings
 from app.core.db import Base, engine
 from app.routes.auth import router as auth_router
+from app.routes.images import router as images_router
 from app.routes.notes import router as notes_router
 from app.routes.organization import router as organization_router
+from app.routes.shares import router as shares_router
 from app.routes.versions import router as versions_router
 
 limiter = Limiter(key_func=get_remote_address)
@@ -104,8 +106,15 @@ def public_page():
     return FileResponse(static_dir / "public.html")
 
 
+@app.get("/s/{token}", include_in_schema=False)
+def share_page(token: str):
+    return FileResponse(static_dir / "share.html")
+
+
 app.include_router(auth_router)
 app.include_router(notes_router)
 app.include_router(organization_router)
 app.include_router(versions_router)
+app.include_router(shares_router)
+app.include_router(images_router)
 app.mount("/", StaticFiles(directory="app/static", html=True), name="static")

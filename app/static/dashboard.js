@@ -265,6 +265,10 @@ function requireAuth(actionText = "이 기능") {
 }
 
 async function api(path, options = {}) {
+  return _apiFetch(path, options);
+}
+
+async function _apiFetch(path, options = {}) {
   const res = await fetch(path, {
     ...options,
     headers: {
@@ -290,6 +294,44 @@ async function api(path, options = {}) {
     throw new Error(data.detail || "요청 실패");
   }
   return data;
+}
+
+async function uploadImageFile(file) {
+  if (!requireAuth("이미지 업로드")) return;
+
+  const allowed = ["image/jpeg", "image/png", "image/gif", "image/webp", "image/svg+xml"];
+  if (!allowed.includes(file.type)) {
+    toast("지원하지 않는 이미지 형식입니다.", "warn");
+    return;
+  }
+  if (file.size > 10 * 1024 * 1024) {
+    toast("이미지 크기는 10MB 이하여야 합니다.", "warn");
+    return;
+  }
+
+  const formData = new FormData();
+  formData.append("file", file);
+
+  try {
+    setSaveState("이미지 업로드 중...");
+    const res = await fetch("/images", {
+      method: "POST",
+      headers: authHeaders(),
+      body: formData,
+    });
+
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({ detail: "업로드 실패" }));
+      throw new Error(err.detail || "업로드 실패");
+    }
+
+    const data = await res.json();
+    const markdown = `![${file.name}](${data.url})`;
+    insertAtCursor(markdown);
+    toast("이미지를 업로드했습니다.", "success");
+  } catch (err) {
+    toast(err.message || "이미지 업로드에 실패했습니다.", "warn");
+  }
 }
 
 function updateAuthButton() {
@@ -827,6 +869,7 @@ async function saveCurrentNote({ silent = false } = {}) {
     is_pinned: state.currentNoteId
       ? state.notes.find((n) => n.id === state.currentNoteId)?.is_pinned || false
       : false,
+    is_autosave: silent,
   };
 
   if (state.currentNoteId) {
@@ -895,16 +938,27 @@ async function copyPublicLink() {
     toast("노트를 먼저 선택하세요.", "warn");
     return;
   }
-  const current = state.notes.find((n) => n.id === state.currentNoteId);
-  if (!current || !current.is_public) {
-    toast("공개 노트만 링크를 복사할 수 있습니다.", "warn");
-    return;
-  }
+  if (!requireAuth("공유 링크")) return;
 
-  const url = `${location.origin}/public?id=${state.currentNoteId}`;
-  await navigator.clipboard.writeText(url);
-  setSaveState("공개 링크 복사됨");
-  toast("공개 링크를 복사했습니다.", "success");
+  try {
+    const links = await api(`/notes/${state.currentNoteId}/share`);
+    const activeLink = (links || []).find((l) => l.is_active);
+    if (activeLink) {
+      const url = `${location.origin}/s/${activeLink.token}`;
+      await navigator.clipboard.writeText(url);
+      setSaveState("공유 링크 복사됨");
+      toast("공유 링크를 복사했습니다.", "success");
+      return;
+    }
+
+    const created = await api(`/notes/${state.currentNoteId}/share`, { method: "POST", body: JSON.stringify({}) });
+    const url = `${location.origin}/s/${created.token}`;
+    await navigator.clipboard.writeText(url);
+    setSaveState("공유 링크 복사됨");
+    toast("공유 링크를 생성하고 복사했습니다.", "success");
+  } catch (err) {
+    toast(err.message || "공유 링크 생성에 실패했습니다.", "warn");
+  }
 }
 
 function scheduleAutoSave() {
@@ -997,6 +1051,17 @@ el.refreshNotesBtn.addEventListener("click", () => loadMyNotes().catch((e) => to
 el.saveNoteBtn.addEventListener("click", () => saveCurrentNote().catch((e) => toast(e.message, "warn")));
 el.deleteNoteBtn.addEventListener("click", () => deleteCurrentNote().catch((e) => toast(e.message, "warn")));
 el.copyPublicLinkBtn.addEventListener("click", () => copyPublicLink().catch((e) => toast(e.message, "warn")));
+
+const imageUploadBtn = document.getElementById("imageUploadBtn");
+if (imageUploadBtn) {
+  imageUploadBtn.addEventListener("change", (event) => {
+    const file = event.target.files?.[0];
+    if (file) {
+      uploadImageFile(file);
+    }
+    event.target.value = "";
+  });
+}
 el.exportMdBtn.addEventListener("click", exportMarkdown);
 el.duplicateNoteBtn.addEventListener("click", duplicateCurrentNote);
 el.resetSettingsBtn.addEventListener("click", resetSettingsToDefault);
@@ -1178,6 +1243,31 @@ el.contentInput.addEventListener("input", () => {
   renderPreview().catch(() => {});
   setDirty(true);
   scheduleAutoSave();
+});
+
+el.contentInput.addEventListener("paste", (event) => {
+  const items = event.clipboardData?.items;
+  if (!items) return;
+  for (const item of items) {
+    if (item.type.startsWith("image/")) {
+      event.preventDefault();
+      const file = item.getAsFile();
+      if (file) uploadImageFile(file);
+      return;
+    }
+  }
+});
+
+el.contentInput.addEventListener("drop", (event) => {
+  const files = event.dataTransfer?.files;
+  if (!files || files.length === 0) return;
+  for (const file of files) {
+    if (file.type.startsWith("image/")) {
+      event.preventDefault();
+      uploadImageFile(file);
+      return;
+    }
+  }
 });
 
 el.titleInput.addEventListener("input", () => {

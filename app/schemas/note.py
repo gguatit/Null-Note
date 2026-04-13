@@ -19,6 +19,7 @@ class NoteUpdate(BaseModel):
     is_pinned: bool | None = None
     folder_ids: list[int] | None = None
     tag_ids: list[int] | None = None
+    is_autosave: bool = False
 
 
 class NoteResponse(BaseModel):
