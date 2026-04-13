@@ -124,6 +124,11 @@ select:disabled {
   justify-content: center;
 }
 
+.icon-btn svg {
+  display: block;
+  margin: auto;
+}
+
 #themeToggleBtn {
   display: grid;
   place-items: center;
@@ -1184,10 +1189,6 @@ body.dark-mode .auth-message {
 .icon-btn-xs:hover {
   background: var(--surface-2);
   color: var(--text);
-}
-
-.icon-btn svg {
-  display: block;
 }
 
 .btn-primary {
